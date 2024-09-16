@@ -1,0 +1,440 @@
+---
+title: "Pedestrian Crashes"
+output:
+  flexdashboard::flex_dashboard:
+    theme:
+      bg: "#DFE9F5"
+      fg: "#000000"
+      primary: "#808080"
+      base_font:
+        google: Prompt
+      code_font:
+        google: JetBrains Mono
+    orientation: columns
+    vertical_layout: fill
+runtime: shiny
+css: style.css
+---
+
+<!-- The Magic Leap Flex Dashboard is designed to provide a comprehensive analysis of pedestrian accidents in Canberra, ACT. It offers insights, trends, and patterns to help users better understand these incidents and make informed decisions. The dashboard is organized into several tabs, each serving a unique purpose:
+
+Insights: Explore this interactive Flex Dashboard to gain in-depth insights into pedestrian accidents. You can filter the data by year, severity, and crash type using user-friendly drop-down menus. The primary focus is on visualizing statistics through an interactive bar chart, allowing you to track year-to-year trends, assess incident severity, and understand crash types.
+
+Timely Crashes: This section delves into the temporal aspects of accidents. It presents crash data in various time-related visualizations. The Plotly-driven bar chart offers a detailed analysis of crash counts by hour, while the density graph provides insights into the times of day when accidents are most likely to occur. Additionally, a pie chart breaks down the total types of casualties, enhancing the understanding of different accident categories.
+
+Patterns: In this tab, you can analyze the yearly distribution of pedestrian casualties. By selecting a specific year, you can explore a detailed breakdown of pedestrian accidents by month and year. This allows for an in-depth examination of annual trends, seasonal patterns, and year-wise distribution of incidents. The line diagram identifies the top three suburbs with the highest accident counts, helping you assess and plan safety measures in these areas.
+
+Canberra Map:The geospatial insights offered in this tab empower users with precise information about accident locations within Canberra. This data is invaluable for city planning, traffic management, and implementing safety measures. The interactive map makes it easy to identify accident hotspots and suburban locations within the city, ultimately promoting safer urban environments.
+
+The overarching goal of this project is to understand the factors contributing to pedestrian accidents, analyze trends, and compare them to external factors. By providing this dashboard, the Magic Leap aims to assist in enhancing safety, city planning, and accident prevention in Canberra, ACT.-->
+
+
+```{r setup, include=FALSE}
+#Loading the flexdashboard package in R to create interactive dashboard and report.
+library(flexdashboard)
+
+```
+
+
+```{r}
+#Loading the necessary packages to setup the R environment for working with data related to pedestrian accidents.
+
+#library(dplyr) package for data manipulation and transformation.
+library(dplyr)
+
+#library(leaflet) to create interactive and customizable maps.
+library(leaflet)
+
+#library(lubridiate) to make parsing, manipulating, and extracting information from date and time objects.
+library(lubridate)
+
+#To read the CSV file named dataset.csv and assign it to a data frame called pedestrian.
+pedestrian <- read.csv("dataset.csv")
+
+```
+
+
+
+
+Insights
+=====================================  
+
+## Column {.tabset data-width="300"}
+
+
+### Introduction 
+
+Explore the interactive Flex Dashboard, a powerful tool for in-depth analysis of pedestrian casualties. Explore and filter pedestrian incident data to gain valuable insights. With the ability to filter by year, severity, and crash type, this user-friendly application provides comprehensive statistics, visualized in an interactive bar diagram. Whether you're interested in year-to-year trends, incident severity, or crash types, this application offers a deeper understanding of pedestrian casualties.
+
+
+```{r}
+#Loading the shiny package for creating interactive web applications.
+library(shiny)
+
+# Assuming your data frame is named 'pedestrian'
+pedestrian$Year <- factor(pedestrian$Year)  # Convert Year to a factor. 
+pedestrian$Month <- factor(pedestrian$Month)
+#Define the user interface (UI) for the shiny web application.
+ui <- fluidPage(
+  titlePanel("Pedestrian Incident Explorer"), #Title of the web page. 
+  sidebarLayout(
+    sidebarPanel(
+      #Creating drop-down menus for user input.
+      selectInput("Year", "Select Year:", choices = unique(pedestrian$Year)),
+      selectInput("Severity", "Select Severity:", choices = unique(pedestrian$Severity)),
+      selectInput("Crash_Type", "Select Crash Type:", choices = unique(pedestrian$Crash_Type)),
+    ),
+    mainPanel(
+      #Creating a plot output area with specified width and height.
+      plotOutput("barplot", width = "100%", height = "400px")
+    )
+  )
+)
+
+#Defining the server logic for the shiny web application.
+server <- function(input, output) {
+  output$barplot <- renderPlot({
+    # Filter data based on selected criteria.
+    filtered_data <- subset(pedestrian,
+                            Year == input$Year &
+                            Severity == input$Severity &
+                            Crash_Type == input$Crash_Type)
+
+  
+#Creating the plot with the filtered data.
+    ggplot(filtered_data, aes(x = Month, y = Pedestrians_Injured, fill = Year)) +
+      geom_bar(stat = "identity", fill = "#249cff") +
+      labs(title = "Pedestrian Casualties by Month and Year",
+           x = "Month",
+           y = "Number of Casualties") 
+  })
+}
+#Create and launch the shiny web application using the defined UI and server.
+
+shinyApp(ui, server)
+
+
+
+```
+
+<!-- The ability to choose from a range of dropdown options, including year, severity, and crash type, empowers users to tailor their analysis precisely to their needs. With each selection, a distinct barplot is generated, offering the user an opportunity to explore the data in-depth. This interactive approach ensures that users can gain comprehensive insights into pedestrian accidents, facilitating informed decision-making and a deeper understanding of the data.-->
+
+
+
+
+Timely Crashes
+=====================================  
+
+## Column {.tabset data-width="250"}
+
+### Unlocking Time-Based Insights
+
+Empowering users with dynamic visualization, the Plotly-driven bar diagram offers a comprehensive exploration of total crash counts across 24 hours. This feature-rich tool unveils insights, tracks temporal trends, and facilitates easy navigation through precise crash data. 
+
+```{r}
+# Load the necessary libraries
+library(dplyr)
+library(plotly)
+
+# Assuming 'pedestrian' is your data frame
+# Convert 'Crash_Time' to a POSIXct datetime object
+#pedestrian$Crash_Time <- as.POSIXct(pedestrian$Crash_Time)
+
+# Extract the hour from the 'Crash_Time' column
+pedestrian$Hour <- format(pedestrian$Crash_Time, format = "%H")
+
+# Group data by hour and calculate total crashes
+hourly_crashes <- pedestrian %>%
+  group_by(Hour) %>%
+  summarise(Total_Crashes = n())
+
+#Defining the custom color palette for the bar plot.
+color_palette <- c(
+ "#0040FF", "#0048FF", "#0050FF", "#0058FF", "#0060FF", "#0068FF", "#0070FF",
+  "#0078FF", "#0080FF", "#0088FF", "#0090FF", "#0098FF", "#00A0FF", "#00A8FF",
+  "#00B0FF", "#00B8FF", "#00C0FF", "#00C8FF", "#00D0FF", "#00D8FF", "#00E0FF", "#00E8FF","#0098FF", "#00A0FF" 
+)
+# Create an interactive bar plot with Plotly
+plot_ly(hourly_crashes, x = ~Hour, y = ~Total_Crashes, type = 'bar', marker = list(color = color_palette)) %>%
+  layout(
+    title = "Total Crashes by Hour of the Day",
+    xaxis = list(title = "Hour of the Day", range = c(0, 24)),
+    yaxis = list(title = "Total Crashes", range = c(0, max(hourly_crashes$Total_Crashes) * 1.1)),
+    showlegend = FALSE
+  )
+```
+
+<!--In summary, the integration of Plotly within the dashboard enhances the user experience by providing a dynamic and interactive platform to explore the dataset. Users can visualize the data points and gain profound insights into the distribution of crashes throughout the day. The Plotly-driven bar diagram offers a detailed representation of crashes by the hour, allowing users to comprehend temporal trends, patterns, and spikes in accidents. This interactivity empowers users to make informed decisions based on a comprehensive understanding of crash data, contributing to improved safety and accident prevention.-->
+
+
+
+
+## Column {data-width="150"}
+
+### Visualizing Crash Type Distribution
+
+The pie chart provides a quick and clear view of crash type distribution. Users can easily see the proportions and relative frequencies of various crash categories, enhancing their understanding of each type's significance in the dataset.
+
+```{r}
+#Loading the necessary library for the shiny application.
+library(shiny)
+library(ggplot2)
+
+#Defining the shiny UI.
+ui <- fluidPage(
+  titlePanel("Pedestrian Casualty Type"),
+  mainPanel(
+    plotOutput("pieChart", width = "400px", height = "150px")
+  )
+)
+
+#Defining the server logic.
+server <- function(input, output) {
+  output$pieChart <- renderPlot({
+    # Define a custom color palette with shades of blue.
+    custom_palette <- c("#00A8FF", "#00D8FF", "#00A8FF", "#00567B", "#00171F", "#0068FF", "#00E8FF")
+
+    # Create a pie chart with custom colors using ggplot2.
+    chart <- ggplot(pedestrian, aes(x = "", y = Crash_Type, fill = Crash_Type)) +
+      geom_bar(stat = "identity", width = 1) +
+      coord_polar(theta = "y") + #Convert the bar plot to a pie chart.
+      scale_fill_manual(values = custom_palette) +  # Use the custom color palette
+      labs(title = "") + #Left the title empty as it looked very clustered.
+      theme_void() #Use a minimal theme for the plot.
+
+    print(chart) #Print the pie chart.
+  })
+}
+
+shinyApp(ui, server)
+
+
+```
+
+<!--The pie chart provides a clear depiction of the distribution of pedestrian crash types. The data reveals a significant prevalence of 'struck pedestrian on the road' and 'collision with a parked vehicle' as the predominant crash types. These findings underscore the pressing need to prioritize road safety measures and enhance parking-related safety measures. Addressing these specific crash types should be a primary focus to reduce pedestrian accidents and improve overall road safety.-->
+
+
+
+### Analyzing Pedestrian Accident Patterns Across the Day
+
+A density plot visually represents pedestrian accidents occurring at different times of the day, categorizing them into morning, evening, afternoon, and night.
+
+```{r}
+#Loading the necessary libraries for the shiny application.
+library(shiny) #building web applications.
+library(ggplot2) #creating data visualizations.
+
+# Sample data frame with a 'Crash Time' column (replace this with your data)
+set.seed(42)
+n <- 100
+df <- data.frame(Crash_Time = as.POSIXct(Sys.time() + runif(n, 0, 24*60*60), origin = "1970-01-01"))
+
+# Define time categories
+time_categories <- c("morning", "afternoon", "evening", "night")
+
+# Create a function to categorize times based on the hour
+categorize_time <- function(time) {
+  hour <- as.numeric(format(time, "%H"))
+  if (hour < 6) {
+    return("Night")
+  } else if (hour < 12) {
+    return("Morning")
+  } else if (hour < 18) {
+    return("Afternoon")
+  } else {
+    return("Evening")
+  }
+}
+
+# Add a new column with time categories to the 'df' data frame.
+df$TimeCategory <- sapply(df$Crash_Time, categorize_time)
+
+#Defining the shiny UI.
+ui <- fluidPage(
+  titlePanel("Crashes by Time Category"),
+  mainPanel(
+    plotOutput("density_plot", width = "100%", height = "170px")
+  )
+)
+
+#Define the server logic.
+server <- function(input, output) {
+  output$density_plot <- renderPlot({
+    ggplot(df, aes(x = Crash_Time, fill = TimeCategory)) +
+      geom_density(alpha = 1.0) +
+      theme_minimal()
+  })
+}
+
+#Create the shiny app
+shinyApp(ui, server)
+```
+
+<!--The density plot effectively visualizes pedestrian accidents categorized by time of day. It highlights that accidents occur with relatively similar frequency during the afternoon, evening, and night hours. However, a notable observation is the comparatively lower incidence of accidents during the afternoon. This insight suggests the potential for a specific focus on accident prevention measures during the afternoon to further enhance pedestrian safety during this time period. -->
+
+
+
+Patterns {data-orientation=columns}
+===================================== 
+
+## Column {.tabset data-width="250"}
+
+### Yearly Casualty Distribution.
+
+
+With the ability to filter by year, users can harness this dynamic visualization to gain precise insights . By selecting a specific year of interest, the diagram presents a detailed breakdown of pedestrian casualties by month and year. This user-friendly feature allows for in-depth exploration, empowering users to track annual trends, identify seasonal patterns, and comprehend the year-wise distribution of incidents.
+
+```{r}
+#Convert the year column in the pedestrian data frame to factor.
+pedestrian$Year <- factor(pedestrian$Year)  # Convert Year to a factor
+
+ui <- fluidPage(
+  titlePanel("Pedestrian Casualties by Month and Year"), #Title of the web page
+  sidebarLayout(
+    sidebarPanel(
+      selectInput("year", "Select Year:", choices = unique(pedestrian$Year)) #Dropdown menu to select year.
+    ),
+    mainPanel(
+      plotOutput("barplot", width = "550px", height = "500px") #Create a placeholder for the bar plot.
+    )
+  )
+)
+
+#Define the server logic.
+server <- function(input, output) {
+  output$barplot <- renderPlot({
+    #Filter data based on the selected year.
+    filtered_data <- subset(pedestrian, Year == input$year)
+    #Create a bar plot of pedestrian casulties by month and year.
+    ggplot(filtered_data, aes(x = Month, y = Pedestrian_loss, fill = Year)) +
+      geom_bar(stat = "identity") +
+      labs(title = "", #Left the title empty as it looked very clustered.
+           x = "Month",
+           y = "Number of Casualties") +
+      scale_fill_manual(values = "#00A8FF") + #Set the fill color to a specific shade of blue.
+      theme_minimal() #Use the minimal theme for the plot.
+  })
+}
+
+#Create the shiny app.
+shinyApp(ui, server)
+
+
+```
+
+<!--The dropdown feature provides users with the ability to select a specific year, enabling them to generate a bar diagram that comprehensively illustrates the distribution of pedestrian casualties across different months. This interactive functionality empowers users to gain a detailed, month-to-month insight into pedestrian accident patterns for a chosen year, facilitating a nuanced understanding of the data and supporting informed decision-making. -->
+
+
+
+## Column {data-width="150"}
+
+### Discovering Trends
+
+The line diagram provides a focused perspective on the top three suburbs with the highest pedestrian accident counts. With its interactive nature, users can quickly identify and explore areas that consistently experience a significant number of incidents. This visualization aids in the proactive assessment of safety measures and urban planning in these locations, enhancing our understanding of high-risk zones.
+
+```{r}
+#Load the necessary libraries for shiny app and data manipulation.
+library(shiny)
+library(dplyr)
+library(ggplot2)
+
+# Define the UI for the Shiny app.
+ui <- fluidPage(
+  titlePanel("Pedestrian Crashes Over the Years"),
+  mainPanel(
+    plotOutput("linePlot", width = "450px", height = "400px")  # Output plot here
+  )
+)
+
+# Define the server logic for the Shiny app.
+server <- function(input, output) {
+  output$linePlot <- renderPlot({
+    # Your code for creating the line plot.
+    #Group and summarise pedestrian crash data by location and year.
+    crash_counts <- pedestrian %>%
+      group_by(Reported_location, Year) %>%
+      summarise(crash_count = n()) %>%
+      ungroup()
+    
+    # Summarize the total crashes for each suburb across all years
+    suburb_totals <- crash_counts %>%
+      group_by(Reported_location) %>%
+      summarise(total_crashes = sum(crash_count)) %>%
+      arrange(desc(total_crashes))
+    
+    # Get the top 3 suburbs with the most crashes
+    top_3_suburbs <- suburb_totals %>%
+      head(3)
+    
+    #Filter the crash data for the top 3 suburbs.
+    filtered_crash_counts <- crash_counts %>%
+      filter(Reported_location %in% top_3_suburbs$Reported_location)
+    
+    # Create a line plot using ggplot2
+    ggplot(filtered_crash_counts, aes(x = Year, y = crash_count, color = Reported_location, group = Reported_location)) +
+      geom_line() + #Add lines connecting data points.
+      geom_point() +  # Add data points
+      labs(
+        title = "", #Left the title empty as it looked very clustered.
+        x = "Year", #Label for the x-axis.
+        y = "Crash Count", #Label for the y-axis
+        color = "Suburb" #Label for the color legend.
+      ) +
+      theme_minimal() #Use the minimal theme for the plot.
+  })
+}
+
+# Run the Shiny app
+shinyApp(ui, server)
+
+```
+
+<!--The line diagram efficiently identifies the top three high-risk zones for pedestrian accidents, which are Belconnen, Canberra City, and Woden. This visualization enables users to focus their attention on these specific areas, aiding in the proactive assessment of safety measures and urban planning initiatives to mitigate the elevated risk of pedestrian accidents within these zones.-->
+
+
+
+
+Canberra Map {data-orientation=rows}
+===================================== 
+
+## Column {.tabset data-width="250"}
+### Enhancing Safety through Geospatial Insights.
+
+
+Incorporating a Canberra map allows for precise identification of accident locations and facilitates a deep understanding of where pedestrian accidents tend to occur. This geospatial insight is invaluable for city planning, traffic management, and implementing safety measures, empowering decision-makers with a comprehensive view of accident hotspots. The interactive map enhances our ability to pinpoint suburbs within the city, promoting safer urban environments.
+
+```{r}
+library(leaflet)
+
+# Define the icon URLs from Google Maps (or host them on your server)
+googleIconUrl <- "https://img.icons8.com/office/480w/map-pin.png"  # URL from the inspect element of the png from icons8.com.
+
+# Create a custom icon for map markers.
+googleIcon <- makeIcon(
+  iconUrl = googleIconUrl,
+  iconWidth = 50, iconHeight = 50  # Adjusted the dimensions as needed
+)
+
+# Create a marker cluster group for the interactive map.
+canberra_map <- leaflet() %>% # Intialise the leaflet map.
+  addTiles() %>% #Adding the title layer.
+  addMarkers(
+    data = pedestrian, #Use pedestrian data for markers.
+    lng = ~Longitude, # Specify the longitude from data.
+    lat = ~Latitude,# Specify the laitude from data.
+    icon = googleIcon,  # Use the custom Google Maps icon
+    popup = ~Reported_location, # Show reported locations as pop-up text.
+    clusterOptions = markerClusterOptions() # Enable marker clustering for better visualization
+  )
+
+# Display the interactive map
+canberra_map
+
+```
+
+<!--Exploring the Canberra map, it becomes evident that a slight zoom-in is necessary to gain a closer view of the accident-prone areas. This feature empowers users with invaluable geospatial insights, allowing for precise identification of accident locations and enhancing our understanding of where pedestrian accidents tend to occur within the city. Such insights are crucial for city planning, effective traffic management, and the implementation of targeted safety measures to create safer urban environments.
+
+
+
+
+
